@@ -1,0 +1,16 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+title: "CATS-GSM: simulator and algorithms for cell-assisted asset tracking and vehicle security over GSM"
+authors:
+  - family-names: Popat
+    given-names: Kalpesh
+    orcid: "https://orcid.org/0000-0002-3818-3717"
+    affiliation: "Marwadi University, Rajkot, Gujarat, India"
+  - family-names: Meva
+    given-names: Divyakant
+    orcid: "https://orcid.org/0000-0001-8804-7337"
+    affiliation: "Marwadi University, Rajkot, Gujarat, India"
+license: MIT
+repository-code: "https://github.com/kapopat1980/cats-gsm"
+version: "1.0.0"
+date-released: "2026-11-13"
