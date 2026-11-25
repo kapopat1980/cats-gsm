@@ -1,6 +1,6 @@
 cff-version: 1.2.0
 message: "If you use this software, please cite it as below."
-title: "CATS-GSM: simulator and algorithms for cell-assisted asset tracking and vehicle security over GSM"
+title: "CATS-GSM: simulator and algorithms for cell-assisted security of GSM vehicle trackers (synthetic and real-route studies)"
 authors:
   - family-names: Popat
     given-names: Kalpesh
@@ -12,5 +12,5 @@ authors:
     affiliation: "Marwadi University, Rajkot, Gujarat, India"
 license: MIT
 repository-code: "https://github.com/kapopat1980/cats-gsm"
-version: "1.0.0"
-date-released: "2026-11-13"
+version: "1.1.0"
+date-released: "2026-11-24"

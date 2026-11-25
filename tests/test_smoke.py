@@ -28,3 +28,15 @@ def test_replay_attack_is_caught_by_cats_not_by_gps_confirm():
 def test_no_theft_gives_few_alarms():
     tr = world.armed_trace(4000, 6 * 3600, 0, 'none', theft=False)
     assert len(A.armed_detect(tr, 'CATS', rearm=True)['alarms']) <= 3
+
+
+def test_real_route_traces_run():
+    import numpy as np
+    n = 700; t = np.arange(n, dtype=float)
+    x = 6000 + 10.0 * t; y = 6000 + 0 * t
+    route = (x, y, np.full(n, 10.0), np.zeros(n), np.zeros(n), np.zeros(n))
+    tr = world.driving_trace(5, route=route)
+    assert tr['n'] == n and np.allclose(tr['x'], x)
+    at = world.armed_trace(6, 300, 0, 'replay', route=route)
+    assert at['n'] == 300 + n and abs(at['x'][0] - x[0]) < 1e-9
+    assert A.run_cats_drive(tr, 100)['energy_J'] > 0

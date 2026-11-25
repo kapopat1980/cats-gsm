@@ -18,27 +18,32 @@ SIG_ACC = 0.15          # accelerometer noise [m/s^2]
 SIG_GYR = 0.01          # gyro noise [rad/s]
 
 
-def make_world(seed=12345):
+def make_world(seed=12345, area=AREA):
     rng = np.random.default_rng(seed)
     pts = []
     dy = ISD * np.sqrt(3) / 2
     y, row = -2 * ISD, 0
-    while y < AREA + 2 * ISD:
+    while y < area + 2 * ISD:
         x = -2 * ISD + (ISD / 2 if row % 2 else 0.0)
-        while x < AREA + 2 * ISD:
+        while x < area + 2 * ISD:
             pts.append((x + rng.uniform(-150, 150), y + rng.uniform(-150, 150)))
             x += ISD
         y += dy
         row += 1
     bts = np.array(pts)
     # urban-canyon zones (unknown to the algorithms): ~15 % of the area
-    nz = 40
-    zc = rng.uniform(0, AREA, size=(nz, 2))
+    nz = max(40, int(40 * (area / AREA) ** 2))
+    zc = rng.uniform(0, area, size=(nz, 2))
     zr = rng.uniform(250, 500, size=nz)
     return dict(bts=bts, zc=zc, zr=zr)
 
 
 WORLD = make_world()
+
+
+def set_world(area, seed=12345):
+    """Rebuild the base-station layout / canyon zones for a larger area (mutates WORLD in place)."""
+    WORLD.clear(); WORLD.update(make_world(seed, area))
 
 
 def in_canyon(x, y):
@@ -125,14 +130,17 @@ def drive(rng, start_node, n_steps, p_stop=0.25):
 
 
 # ----------------------------------------------------------------- radio
+SIG_SP, SIG_TM, HYST, TA_NOISE, THIEF_F = 5.0, 2.5, 4.0, 0.35, 1.0
+
+
 def cell_series(rng, x, y, v, dt=1.0):
     """Serving cell and timing advance along a trajectory.
     RSSI_i = -30 - 35 log10(d_i) + s_spatial_i + s_temporal_i ; idle reselection with 3 dB hysteresis."""
     bts = WORLD['bts']
     nb = len(bts)
     n = len(x)
-    s_sp = rng.normal(0, 5.0, nb)
-    s_tm = rng.normal(0, 2.5, nb)
+    s_sp = rng.normal(0, SIG_SP, nb)
+    s_tm = rng.normal(0, SIG_TM, nb)
     serving = np.zeros(n, dtype=np.int32)
     ta = np.zeros(n, dtype=np.int16)
     cur = -1
@@ -142,16 +150,16 @@ def cell_series(rng, x, y, v, dt=1.0):
         px, py = x[t], y[t]
         rho_s = np.exp(-step / 100.0)
         rho_t = np.exp(-dt / 120.0)
-        s_sp = rho_s * s_sp + np.sqrt(1 - rho_s ** 2) * 5.0 * rng.standard_normal(nb)
-        s_tm = rho_t * s_tm + np.sqrt(1 - rho_t ** 2) * 2.5 * rng.standard_normal(nb)
+        s_sp = rho_s * s_sp + np.sqrt(1 - rho_s ** 2) * SIG_SP * rng.standard_normal(nb)
+        s_tm = rho_t * s_tm + np.sqrt(1 - rho_t ** 2) * SIG_TM * rng.standard_normal(nb)
         d = np.hypot(bts[:, 0] - x[t], bts[:, 1] - y[t])
         rssi = -30.0 - 35.0 * np.log10(np.maximum(d, 10.0)) + s_sp + s_tm
         best = int(np.argmax(rssi))
-        if cur < 0 or (best != cur and rssi[best] > rssi[cur] + 4.0):
+        if cur < 0 or (best != cur and rssi[best] > rssi[cur] + HYST):
             cur = best
         serving[t] = cur
         dc = d[cur]
-        ta[t] = max(0, int(round(dc / TA_STEP + rng.normal(0, 0.35))))
+        ta[t] = max(0, int(round(dc / TA_STEP + rng.normal(0, TA_NOISE))))
     return serving, ta
 
 
@@ -176,10 +184,13 @@ def _sensors(rng, x, y, v, th, a, w, dt=1.0):
     return dict(imu_a=imu_a, imu_w=imu_w, gps_ok=gps_ok, gx=gx, gy=gy, gv=gv, gth=gth, ba=ba, bw=bw)
 
 
-def driving_trace(seed, n=3600):
+def driving_trace(seed, n=3600, route=None):
     rng = np.random.default_rng(seed)
-    start = (int(rng.integers(5, NODES - 5)), int(rng.integers(5, NODES - 5)))
-    x, y, v, th, a, w = drive(rng, start, n)
+    if route is not None:          # real trajectory (x, y, v, th, a, w) at 1 Hz
+        x, y, v, th, a, w = [np.asarray(r, float) for r in route]; n = len(x)
+    else:
+        start = (int(rng.integers(5, NODES - 5)), int(rng.integers(5, NODES - 5)))
+        x, y, v, th, a, w = drive(rng, start, n)
     sv, ta = cell_series(rng, x, y, v)
     tr = dict(x=x, y=y, v=v, th=th, a=a, w=w, serving=sv, ta=ta)
     tr.update(_sensors(rng, x, y, v, th, a, w))
@@ -191,16 +202,27 @@ ACC_FA_RATE = 0.25 / 3600.0   # spurious motion-sensor triggers per second
 ACC_PD = 0.90                 # prob. the motion sensor detects theft motion onset
 
 
-def armed_trace(seed, n_pre, n_theft, attack, theft=True, acc_pd=ACC_PD):
+def armed_trace(seed, n_pre, n_theft, attack, theft=True, acc_pd=ACC_PD, route=None, park=None):
     """Parked & armed for n_pre s (random location), then (optionally) theft driving for n_theft s."""
     rng = np.random.default_rng(seed)
     i = int(rng.integers(5, NODES - 5)); j = int(rng.integers(5, NODES - 5))
     px, py = i * SPACING, j * SPACING
+    if park is not None: px, py = park
+    elif route is not None: px, py = float(route[0][0]), float(route[1][0])
+    if route is not None and theft: n_theft = len(route[0])
     n = n_pre + (n_theft if theft else 0)
     x = np.full(n, px); y = np.full(n, py); v = np.zeros(n); th = np.zeros(n)
     a = np.zeros(n); w = np.zeros(n)
     if theft:
-        xs, ys, vs, ths, as_, ws = drive(rng, (i, j), n_theft, p_stop=0.15)
+        if route is not None:
+            xs, ys, vs, ths, as_, ws = [np.asarray(r, float) for r in route]
+            xs = xs - xs[0] + px; ys = ys - ys[0] + py
+        else:
+            xs, ys, vs, ths, as_, ws = drive(rng, (i, j), n_theft, p_stop=0.15)
+            if THIEF_F != 1.0:      # stress test: thief drives at THIEF_F x the nominal speed (time-warped route)
+                f = THIEF_F; tt = np.arange(n_theft) * f; ti = np.arange(n_theft)
+                xs = np.interp(tt, ti, xs); ys = np.interp(tt, ti, ys); ths = np.interp(tt, ti, ths)
+                vs = f * np.interp(tt, ti, vs); as_ = f * f * np.interp(tt, ti, as_); ws = f * np.interp(tt, ti, ws)
         x[n_pre:] = xs; y[n_pre:] = ys; v[n_pre:] = vs; th[n_pre:] = ths
         a[n_pre:] = as_; w[n_pre:] = ws
     sv, ta = cell_series(rng, x, y, v)
