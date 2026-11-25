@@ -1,0 +1,12 @@
+{
+  "title": "CATS-GSM: simulator and algorithms for cell-assisted asset tracking and vehicle security over GSM",
+  "upload_type": "software",
+  "description": "Python trace-driven simulator, baseline re-implementations and the CATS-GSM algorithm used in the accompanying manuscript, including the real-route study on Porto taxi trajectories (trips not redistributed), with the raw and aggregated results behind every table and figure.",
+  "version": "1.2.0",
+  "creators": [
+    {"name": "Popat, Kalpesh", "affiliation": "Marwadi University, Rajkot, Gujarat, India", "orcid": "0000-0002-3818-3717"},
+    {"name": "Meva, Divyakant", "affiliation": "Marwadi University, Rajkot, Gujarat, India", "orcid": "0000-0001-8804-7337"}
+  ],
+  "license": "MIT",
+  "keywords": ["asset tracking", "vehicle security", "GSM", "timing advance", "GPS spoofing", "dead reckoning", "simulation"]
+}

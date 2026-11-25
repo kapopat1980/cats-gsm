@@ -54,6 +54,20 @@ Study R sampled trips at random (seed 0); results depend on the dataset file and
 All random draws are seeded (Study S: driving 1000-1099, theft 2000-2149, false alarms 9100-9139), so the numbers are
 reproducible. Parameters tuned on data (the IMU speed threshold) were chosen on separate seeds 7000-7029 and 8000-8029.
 
+### Robustness and tuned-baseline checks (v1.2.0)
+
+Run from the repository root (`PYTHONPATH=. python diag/<script>.py`):
+
+| Script | What it does |
+| --- | --- |
+| `diag/diag_resample.py` | Re-samples the synthetic drives to 15 s and re-interpolates them like the Porto routes; compares CATS-GSM, D3-IMU, D3-DR |
+| `diag/tune_dr.py`, `diag/tune2.py` | Tunes the D3-DR constants (kappa, cap) on training seeds 7000-7029 |
+| `diag/eval_tuned.py` | Evaluates tuned D3-DR on held-out synthetic and resampled routes |
+| `diag/stress.py` | Armed-mode stress tests: shadowing, TA noise, hysteresis, thief speed |
+| `exp_real_tuned.py` / `CATS_GSM_Porto_TunedDR_Kaggle.ipynb` | Re-runs the Porto driving comparison with the tuned D3-DR; output `results_real/tuned_driving.json` |
+
+`world.py` now exposes `SIG_SP, SIG_TM, HYST, TA_NOISE, THIEF_F` (defaults reproduce all earlier results exactly).
+
 ## Cite
 
 See `CITATION.cff`. Released under the MIT licence.

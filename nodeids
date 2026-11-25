@@ -1,0 +1,7 @@
+[
+  "tests/test_smoke.py::test_driving_algorithms_run_and_energy_positive",
+  "tests/test_smoke.py::test_driving_trace_is_deterministic",
+  "tests/test_smoke.py::test_no_theft_gives_few_alarms",
+  "tests/test_smoke.py::test_real_route_traces_run",
+  "tests/test_smoke.py::test_replay_attack_is_caught_by_cats_not_by_gps_confirm"
+]
